@@ -90,6 +90,16 @@ Module.register("MMM-soccer", {
         this.scheduleDOMUpdates();
     },
 
+    getScripts: function() {
+        return [this.file("node_modules/hammerjs/hammer.js")];
+    },
+
+    setupGestures() {
+        const hammer = new Hammer(document.getElementById(this.identifier));
+        hammer.on("swiperight", this.showPreviousLeague.bind(this));
+        hammer.on("swipeleft", this.showNextLeague.bind(this));
+    },
+
 
     loadReplacements: function(callback) {
         this.log("Loading replacements file");
@@ -121,7 +131,6 @@ Module.register("MMM-soccer", {
     },
 
     updateCurrentLeague: function() {
-        this.log("### Current league index: ", currentLeagueIndex)
         this.competition = this.leagues[currentLeagueIndex];
         this.log("Showing competition: " + this.competition);
         this.log(this.tables[this.competition]);
@@ -163,15 +172,13 @@ Module.register("MMM-soccer", {
             const voice = Object.assign({}, this.voice);
             voice.sentences.push(Object.keys(this.config.leagues).join(" "));
             this.sendNotification("REGISTER_VOICE_MODULE", voice);
+        } else if (notification === "DOM_OBJECTS_CREATED") {
+            this.setupGestures();
         } else if (notification === "VOICE_SOCCER" && sender.name === "MMM-voice") {
             this.checkCommands(payload);
         } else if (notification === "VOICE_MODE_CHANGED" && sender.name === "MMM-voice" && payload.old === this.voice.mode) {
             this.closeAllModals();
             this.updateDom(500);
-        } else if (notification === "PREVIOUS_LEAGUE") {
-            this.showPreviousLeague();
-        } else if (notification === "NEXT_LEAGUE") {
-            this.showNextLeague();
         }
     },
 
