@@ -1,6 +1,5 @@
 <div class="soccerWrapper {% if isModalActive %}MMM-soccer-blur{% endif %}" style="width: {{config.width}}px">
-<header>MMM-Soccer</header>
-	
+
 {% if loading %}
 	{{'LOADING' | translate}}
 {% else %}
@@ -8,30 +7,28 @@
 		<div class="xsmall">
 			{% if comps.length %}
 				{% for i in range(0, comps.length) %}
-                <table class="games">
-                  <tbody>
-                    <tr class="small matchDay bold centered-row">
-                      <td rowspan="2" style="text-align: right; vertical-align: middle; padding-right: 15px; width: 50%;">
-                        <img class="big-icon {% if not config.colored %}no-color{% endif %}" src="{{comps[i].emblem}}"></img>
-                      </td>
-                      <td style="text-align: left">{{ comps[i].competition }}</td>
-                    </tr>
-                    <tr class="small matchDay bold centered-row"><td style="text-align: left">{{ comps[i].season }}</td></tr>                
-                  </tbody>
-                </table>
+                    <div class="header-matchDay">
+                        <div class="header-matchDay-icon">
+                            <img class="big-icon {% if not config.colored %}no-color{% endif %}" src="{{comps[i].emblem}}" draggable="false"/>
+                        </div>
+                        <div class="header-matchDay-text small bold">
+                            <span>{{ comps[i].competition }}</span>
+                            <span>{{ comps[i].season }}</span>
+                        </div>
+                    </div>
 				<table class="games">
 					<tbody>
-						{% for m in range(0, comps[i].matches.length) %}					
+						{% for m in range(0, comps[i].matches.length) %}
 							<tr class="centered-row {% if comps[i].matches[m].focused %}bright{% endif %}">
 							<td class="name matchName homeTeam {{comps[i].matches[m].status}} {{comps[i].matches[m].homeTeam.status}}">{{comps[i].matches[m].homeTeam.name | replace}}</td>
 							{% if config.logos %}
 								<td class="logo">
-									<img class="icon {% if not config.colored %}no-color{% endif %}" src="{{teams[comps[i].matches[m].homeTeam.id].crest}}"/>
+									<img class="icon {% if not config.colored %}no-color{% endif %}" src="{{teams[comps[i].matches[m].homeTeam.id].crest}}" draggable="false"/>
 								</td>
 							{% endif %}
 							<td class="status bold {{comps[i].matches[m].status}}">{{ comps[i].matches[m].state }}</td>
 							{% if config.logos %}
-								<td class="logo"><img class="icon {% if not config.colored %}no-color{% endif %}" src="{{teams[comps[i].matches[m].awayTeam.id].crest}}"/></td>
+								<td class="logo"><img class="icon {% if not config.colored %}no-color{% endif %}" src="{{teams[comps[i].matches[m].awayTeam.id].crest}}" draggable="false"/></td>
 							{% endif %}
 							<td class="name matchName awayTeam {{comps[i].matches[m].status}} {{comps[i].matches[m].awayTeam.status}}">{{comps[i].matches[m].awayTeam.name | replace}}</td>
 							</tr>
@@ -42,7 +39,7 @@
 			{% else %}
 				<tr class="centered-row">
 					<td>{{ 'NO_MATCHES' | translate }}</td>
-				</tr> 
+				</tr>
 			{% endif %}
 		</div>
 	{% endif %}
@@ -67,7 +64,7 @@
 					<tr class="centered-row {% if i === boundaries.focusTeamIndex %}bright{% endif %}" style="{{i | fade(boundaries.focusTeamIndex)}}">
 						<td>{{table[i].position}}</td>
 						{% if config.logos %}
-							<td class="logo"><img class="icon {% if not config.colored %}no-color{% endif %}" src="{{table[i].team.crest}}"/></td>
+							<td class="logo"><img class="icon {% if not config.colored %}no-color{% endif %}" src="{{table[i].team.crest}}" draggable="false"/></td>
 						{% endif %}
 						<td class="name">{{table[i].team.name | replace}}</td>
 						<td class="centered">{{table[i].playedGames}}</td>
@@ -103,7 +100,7 @@
 					<tr class="centered-row {% if index === boundaries.focusTeamIndex %}bright{% endif %}">
 						<td>{{entry.position}}</td>
 						{% if config.logos %}
-							<td><img class="icon {% if not config.colored %}no-color{% endif %}" src={{entry.team.crestUrl}}/></td>
+							<td><img class="icon {% if not config.colored %}no-color{% endif %}" src={{entry.team.crestUrl}} draggable="false"/></td>
 						{% endif %}
 						<td class="name">{{entry.team.name}}</td>
 						<td class="centered">{{entry.points}}</td>
