@@ -228,7 +228,7 @@ Module.register("MMM-soccer", {
                 }
             }
             this.log("Current matchday: " + this.matchDay);
-            this.showTable = (!isNaN(this.matchDay));
+            this.showTable = this.config.showTables && (!isNaN(this.matchDay));
             returnedMatches.push({
                 competition: (Object.keys(this.tables).length > 0) ? this.tables[this.competition].competition.name : "",
                 emblem: (Object.keys(this.tables).length > 0) ? this.tables[this.competition].competition.emblem : "",
