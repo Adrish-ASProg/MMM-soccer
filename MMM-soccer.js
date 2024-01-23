@@ -80,9 +80,8 @@ Module.register("MMM-soccer", {
         this.competition = this.leagues[0];
         this.showTable = this.config.showTables;
         var self = this;
-        this.replacers = this.loadReplacements(response => {
+        this.loadReplacements(response => {
             self.replacements = JSON.parse(response);
-            //self.log(self.replacements);
         });
         this.sendSocketNotification("GET_SOCCER_DATA", this.config);
         this.scheduleDOMUpdates();
@@ -193,12 +192,12 @@ Module.register("MMM-soccer", {
     },
 
     getMatchHeader: function() {
-        if (this.config.matchType == "daily") {
+        if (this.config.matchType === "daily") {
             return {
                 competition: this.translate("TODAYS_MATCHES"),
                 season: (Object.keys(this.tables).length > 0) ? "" : this.translate("LOADING")
             };
-        } else if (this.config.matchType == "next") {
+        } else if (this.config.matchType === "next") {
             return {
                 competition: this.translate("NEXT_MATCHES"),
                 season: (Object.keys(this.tables).length > 0) ? "" : this.translate("LOADING")
@@ -234,7 +233,7 @@ Module.register("MMM-soccer", {
                 emblem: (Object.keys(this.tables).length > 0) ? this.tables[this.competition].competition.emblem : "",
                 season: (Object.keys(this.tables).length > 0) ? `${this.translate("MATCHDAY")}: ${this.translate(this.matchDay)}` : this.translate("LOADING"),
                 matches: matches.filter(match => {
-                    return match.matchday == this.matchDay;
+                    return match.matchday === this.matchDay;
                 })
             });
         } else if (this.config.matchType === "next") {
@@ -243,7 +242,7 @@ Module.register("MMM-soccer", {
             for (var comp in this.config.focus_on) {
                 teams.push(this.config.focus_on[comp]);
             }
-            for (var league in allMatches) {
+            for (let league in allMatches) {
                 filteredMatches = allMatches[league].matches.filter(match => {
                     return (teams.includes(match.homeTeam.name) || teams.includes(match.awayTeam.name));
                 });
@@ -265,8 +264,8 @@ Module.register("MMM-soccer", {
 
         } else if (this.config.matchType === "daily") {
             var today = moment().subtract(this.config.daysOffset, "days");
-            var todaysMatches = [];
-            for (var league in allMatches) {
+            // var todaysMatches = [];
+            for (let league in allMatches) {
                 var filteredMatches = allMatches[league].matches.filter(match => {
                     return (moment(match.utcDate).isSame(today, "day"));
                 });
@@ -292,16 +291,16 @@ Module.register("MMM-soccer", {
         }
         returnedMatches.forEach(matchset => {
             matchset.matches.forEach(match => {
-                if (this.config.matchType == "league" || this.config.matchType == "daily") {
-                    match.focused = (match.homeTeam.name === focusTeam) ? true : (match.awayTeam.name === focusTeam) ? true : false;
+                if (this.config.matchType === "league" || this.config.matchType === "daily") {
+                    match.focused = [match.homeTeam.name, match.awayTeam.name].includes(focusTeam);
                 }
-                if (match.status == "TIMED" || match.status == "SCHEDULED" || match.status == "POSTPONED") {
+                if (match.status === "TIMED" || match.status === "SCHEDULED" || match.status === "POSTPONED") {
                     match.state = (moment(match.utcDate).diff(moment(), "days") > 7) ? moment(match.utcDate).format("D.MM.") : (moment(match.utcDate).startOf("day") > moment()) ? moment(match.utcDate).format("dd HH:mm") : moment(match.utcDate).format("LT");
                 } else {
                     match.state = match.score.fullTime.home + " - " + match.score.fullTime.away;
-                    if (match.score.winner == "HOME_TEAM") {
+                    if (match.score.winner === "HOME_TEAM") {
                         match.homeTeam["status"] = "winner";
-                    } else if (match.score.winner == "AWAY_TEAM") {
+                    } else if (match.score.winner === "AWAY_TEAM") {
                         match.awayTeam["status"] = "winner";
                     }
                 }
@@ -490,7 +489,7 @@ Module.register("MMM-soccer", {
 
         njEnv.addFilter("replace", (team) => {
             var replace = this.config.replace;
-            if ((replace == "default" || replace == "short") && (this.replacements.default.hasOwnProperty(team))) {
+            if ((replace === "default" || replace === "short") && (this.replacements.default.hasOwnProperty(team))) {
                 return this.replacements[replace][team];
             } else {
                 return team;
