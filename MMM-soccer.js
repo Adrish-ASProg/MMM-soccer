@@ -11,6 +11,9 @@
 
 /* global Module Log */
 
+let refreshTimer;
+let currentLeagueIndex = 0;
+
 Module.register("MMM-soccer", {
 
     defaults: {
@@ -104,17 +107,29 @@ Module.register("MMM-soccer", {
 
 
     scheduleDOMUpdates: function() {
-        var count = 0;
-        var self = this;
-        setInterval(() => {
-            const comps = self.leagues.length;
-            count = (count >= comps - 1) ? 0 : count + 1;
-            self.competition = self.leagues[count];
-            self.log("Showing competition: " + self.competition);
-            self.log(self.tables[self.competition]);
-            self.standing = self.filterTables(self.tables[self.competition], self.config.focus_on[self.competition]);
-            self.updateDom(500);
-        }, this.config.updateInterval * 1000);
+        this.refreshTimer = setInterval(this.showNextLeague.bind(this), this.config.updateInterval * 1000);
+    },
+
+    showPreviousLeague: function() {
+        currentLeagueIndex = currentLeagueIndex === 0 ? this.leagues.length - 1 : currentLeagueIndex - 1;
+        this.updateCurrentLeague();
+    },
+
+    showNextLeague: function() {
+        currentLeagueIndex = currentLeagueIndex >= this.leagues.length - 1 ? 0 : currentLeagueIndex + 1;
+        this.updateCurrentLeague();
+    },
+
+    updateCurrentLeague: function() {
+        this.log("### Current league index: ", currentLeagueIndex)
+        this.competition = this.leagues[currentLeagueIndex];
+        this.log("Showing competition: " + this.competition);
+        this.log(this.tables[this.competition]);
+        this.standing = this.filterTables(this.tables[this.competition], this.config.focus_on[this.competition]);
+        this.updateDom(500);
+
+        if (this.refreshTimer) clearInterval(this.refreshTimer);
+        this.scheduleDOMUpdates();
     },
 
 
@@ -153,6 +168,10 @@ Module.register("MMM-soccer", {
         } else if (notification === "VOICE_MODE_CHANGED" && sender.name === "MMM-voice" && payload.old === this.voice.mode) {
             this.closeAllModals();
             this.updateDom(500);
+        } else if (notification === "PREVIOUS_LEAGUE") {
+            this.showPreviousLeague();
+        } else if (notification === "NEXT_LEAGUE") {
+            this.showNextLeague();
         }
     },
 
