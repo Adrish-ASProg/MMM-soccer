@@ -11,6 +11,29 @@
 
 /* global Module Log */
 
+const cycles = [
+    {
+        matchType: "league",
+        showMatches: false,
+        showTables: true
+    },
+    {
+        matchType: "league",
+        showMatches: true,
+        showTables: false
+    },
+    {
+        matchType: "next",
+        showMatches: true,
+        showTables: false
+    },
+    {
+        matchType: "daily",
+        showMatches: true,
+        showTables: false
+    }
+];
+
 Module.register("MMM-soccer", {
 
     defaults: {
@@ -73,6 +96,7 @@ Module.register("MMM-soccer", {
     competition: "",
     competitionIndex: 0,
     refreshTimer: undefined,
+    currentCycle: 0,
 
     start: function() {
         this.addFilters();
@@ -92,9 +116,31 @@ Module.register("MMM-soccer", {
     },
 
     setupGestures() {
-        const hammer = new Hammer(document.getElementById(this.identifier));
-        hammer.on("swiperight", this.showPreviousLeague.bind(this));
-        hammer.on("swipeleft", this.showNextLeague.bind(this));
+        const hammer = new Hammer.Manager(document.getElementById(this.identifier));
+        hammer.add(new Hammer.Tap({ taps: 2 }));
+        hammer.add(new Hammer.Swipe());
+
+        hammer.on("swiperight", this.showPreviousCycle.bind(this));
+        hammer.on("swipeleft", this.showNextCycle.bind(this));
+        hammer.on("tap", this.showNextLeague.bind(this));
+    },
+
+    showPreviousCycle() {
+        this.currentCycle = this.currentCycle === 0 ? cycles.length - 1 : this.currentCycle - 1;
+        this.updateCurrentCycle();
+    },
+
+    showNextCycle() {
+        this.currentCycle = this.currentCycle >= cycles.length - 1 ? 0 : this.currentCycle + 1;
+        this.updateCurrentCycle();
+    },
+
+    updateCurrentCycle() {
+        this.config.matchType = cycles[this.currentCycle].matchType;
+        this.config.showMatches = cycles[this.currentCycle].showMatches;
+        this.config.showTables = cycles[this.currentCycle].showTables;
+        this.showTable = cycles[this.currentCycle].showTables;
+        this.updateDom(500);
     },
 
 
@@ -114,11 +160,6 @@ Module.register("MMM-soccer", {
 
     scheduleDOMUpdates: function() {
         this.refreshTimer = setInterval(this.showNextLeague.bind(this), this.config.updateInterval * 1000);
-    },
-
-    showPreviousLeague: function() {
-        this.competitionIndex = this.competitionIndex === 0 ? this.leagues.length - 1 : this.competitionIndex - 1;
-        this.updateCurrentLeague();
     },
 
     showNextLeague: function() {
