@@ -11,9 +11,6 @@
 
 /* global Module Log */
 
-let refreshTimer;
-let currentLeagueIndex = 0;
-
 Module.register("MMM-soccer", {
 
     defaults: {
@@ -74,15 +71,15 @@ Module.register("MMM-soccer", {
         default: {}
     },
     competition: "",
-
+    competitionIndex: 0,
+    refreshTimer: undefined,
 
     start: function() {
-        Log.info(`Starting module: ${this.name}`);
         this.addFilters();
         this.leagues = this.config.show;
         this.competition = this.leagues[0];
         this.showTable = this.config.showTables;
-        var self = this;
+        const self = this;
         this.loadReplacements(response => {
             self.replacements = JSON.parse(response);
         });
@@ -102,17 +99,16 @@ Module.register("MMM-soccer", {
 
 
     loadReplacements: function(callback) {
-        this.log("Loading replacements file");
-        var xobj = new XMLHttpRequest();
-        var path = this.file("replacements.json");
-        xobj.overrideMimeType("application/json");
-        xobj.open("GET", path, true);
-        xobj.onreadystatechange = function() {
-            if (xobj.readyState === 4 && xobj.status === 200) {
-                callback(xobj.responseText);
+        const xmlRequest = new XMLHttpRequest();
+        const path = this.file("replacements.json");
+        xmlRequest.overrideMimeType("application/json");
+        xmlRequest.open("GET", path, true);
+        xmlRequest.onreadystatechange = function() {
+            if (xmlRequest.readyState === 4 && xmlRequest.status === 200) {
+                callback(xmlRequest.responseText);
             }
         };
-        xobj.send(null);
+        xmlRequest.send(null);
     },
 
 
@@ -121,17 +117,17 @@ Module.register("MMM-soccer", {
     },
 
     showPreviousLeague: function() {
-        currentLeagueIndex = currentLeagueIndex === 0 ? this.leagues.length - 1 : currentLeagueIndex - 1;
+        this.competitionIndex = this.competitionIndex === 0 ? this.leagues.length - 1 : this.competitionIndex - 1;
         this.updateCurrentLeague();
     },
 
     showNextLeague: function() {
-        currentLeagueIndex = currentLeagueIndex >= this.leagues.length - 1 ? 0 : currentLeagueIndex + 1;
+        this.competitionIndex = this.competitionIndex >= this.leagues.length - 1 ? 0 : this.competitionIndex + 1;
         this.updateCurrentLeague();
     },
 
     updateCurrentLeague: function() {
-        this.competition = this.leagues[currentLeagueIndex];
+        this.competition = this.leagues[this.competitionIndex];
         this.log("Showing competition: " + this.competition);
         this.log(this.tables[this.competition]);
         this.standing = this.filterTables(this.tables[this.competition], this.config.focus_on[this.competition]);
@@ -237,12 +233,12 @@ Module.register("MMM-soccer", {
 
 
     prepareMatches: function(allMatches, focusTeam) {
-        var returnedMatches = [];
+        const returnedMatches = [];
         if (this.config.matchType === "league") {
-            var diff = 0;
-            var matches = allMatches[this.competition].matches;
-            var minDiff = Math.abs(moment().diff(matches[0].utcDate));
-            for (var m = 0; m < matches.length; m++) {
+            let diff = 0;
+            const matches = allMatches[this.competition].matches;
+            let minDiff = Math.abs(moment().diff(matches[0].utcDate));
+            for (let m = 0; m < matches.length; m++) {
                 if (!matches[m].matchday) {
                     matches[m].matchday = matches[m].stage;
                 }  //for cup modes, copy stage to matchday property
@@ -263,19 +259,19 @@ Module.register("MMM-soccer", {
                 })
             });
         } else if (this.config.matchType === "next") {
-            var teams = [];
-            var nextMatches = [];
-            for (var comp in this.config.focus_on) {
+            const teams = [];
+            const nextMatches = [];
+            for (let comp in this.config.focus_on) {
                 teams.push(this.config.focus_on[comp]);
             }
             for (let league in allMatches) {
-                filteredMatches = allMatches[league].matches.filter(match => {
+                const filteredMatches = allMatches[league].matches.filter(match => {
                     return (teams.includes(match.homeTeam.name) || teams.includes(match.awayTeam.name));
                 });
-                var index = filteredMatches.findIndex(match => {
+                const index = filteredMatches.findIndex(match => {
                     return (parseInt(moment(match.utcDate).format("X")) > parseInt(moment().format("X")));
                 });
-                for (var i = index - 1; i < filteredMatches.length; i++) {
+                for (let i = index - 1; i < filteredMatches.length; i++) {
                     nextMatches.push(filteredMatches[i]);
                 }
             }
@@ -289,10 +285,10 @@ Module.register("MMM-soccer", {
             });
 
         } else if (this.config.matchType === "daily") {
-            var today = moment().subtract(this.config.daysOffset, "days");
+            const today = moment().subtract(this.config.daysOffset, "days");
             // var todaysMatches = [];
             for (let league in allMatches) {
-                var filteredMatches = allMatches[league].matches.filter(match => {
+                const filteredMatches = allMatches[league].matches.filter(match => {
                     return (moment(match.utcDate).isSame(today, "day"));
                 });
                 this.log("Filtered macthes: ");
@@ -341,12 +337,14 @@ Module.register("MMM-soccer", {
     filterTables: function(tables, focusTeam) {
         //filtering out "home" and "away" tables
         if (tables && !tables.standings) return "";
-        tableArray = tables.standings.filter(table => {
+
+        const tableArray = tables.standings.filter(table => {
             return table.type === "TOTAL";
         });
+
         if (tableArray[0].group === "GROUP_A" && this.config.focus_on.hasOwnProperty(tables.competition.code)) {			//cup mode
-            for (var t = 0; t < tableArray.length; t++) {
-                for (var n = 0; n < tableArray[t].table.length; n++) {
+            for (let t = 0; t < tableArray.length; t++) {
+                for (let n = 0; n < tableArray[t].table.length; n++) {
                     if (tableArray[t].table[n].team.name === focusTeam) {
                         table = tableArray[t].table;
                     }
@@ -362,7 +360,7 @@ Module.register("MMM-soccer", {
     findFocusTeam: function() {
         this.log("Finding focus team for table...");
         let focusTeamIndex = -1;
-        var table = this.standing;
+        const table = this.standing;
         for (let i = 0; i < table.length; i++) {
             if (table[i].team.name === this.config.focus_on[this.competition]) {
                 focusTeamIndex = i;
@@ -484,13 +482,13 @@ Module.register("MMM-soccer", {
         } else if (/(VIEW)/g.test(data)) {
             this.handleModals(data, "standings", /(EXPAND)/g, /(COLLAPSE)/g);
         } else if (/(STANDINGS)/g.test(data)) {
-            const countrys = Object.keys(this.config.leagues);
-            for (let i = 0; i < countrys.length; i += 1) {
-                const regexp = new RegExp(countrys[i], "g");
+            const countries = Object.keys(this.config.leagues);
+            for (let i = 0; i < countries.length; i += 1) {
+                const regexp = new RegExp(countries[i], "g");
                 if (regexp.test(data)) {
                     this.closeAllModals();
-                    if (this.currentLeague !== this.config.leagues[countrys[i]]) {
-                        this.currentLeague = this.config.leagues[countrys[i]];
+                    if (this.currentLeague !== this.config.leagues[countries[i]]) {
+                        this.currentLeague = this.config.leagues[countries[i]];
                         this.getData();
                     }
                     break;
@@ -514,7 +512,7 @@ Module.register("MMM-soccer", {
         });
 
         njEnv.addFilter("replace", (team) => {
-            var replace = this.config.replace;
+            const replace = this.config.replace;
             if ((replace === "default" || replace === "short") && (this.replacements.default.hasOwnProperty(team))) {
                 return this.replacements[replace][team];
             } else {
