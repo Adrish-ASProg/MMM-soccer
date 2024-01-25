@@ -68,9 +68,6 @@ Module.register<Config>("MMM-soccer", {
     matchDay: "",
     showTable: true,
     leagues: [] as string[],
-    liveMode: false,
-    liveMatches: [],
-    liveLeagues: [],
     replacements: {
         default: {}
     },
@@ -150,8 +147,6 @@ Module.register<Config>("MMM-soccer", {
 
     updateCurrentLeague: function() {
         this.competition = this.leagues[this.competitionIndex];
-        this.log("Showing competition: " + this.competition);
-        this.log(this.tables[this.competition]);
         this.standing = this.filterTables(this.tables[this.competition], this.config.focus_on[this.competition]);
         this.updateDom(500);
 
@@ -168,11 +163,8 @@ Module.register<Config>("MMM-soccer", {
             this.matches = payload as MatchesPerLeague;
         } else if (notification === "TEAMS") {
             this.teams = payload as Record<string, Team>;
-        } else if (notification === "LIVE") {
-            this.liveMode = payload.live;
-            this.leagues = (payload.leagues.length > 0) ? payload.leagues : this.config.show;
-            this.liveMatches = payload.matches;
         }
+
         if (this.loading === true && this.tables.hasOwnProperty(this.competition) && Object.keys(this.matches).length) {
             this.loading = false;
             this.updateDom();
@@ -211,7 +203,6 @@ Module.register<Config>("MMM-soccer", {
     getTemplate: function() {
         return "MMM-soccer.njk";
     },
-
 
     getTemplateData: function(): TemplateData {
         return {
@@ -329,6 +320,7 @@ Module.register<Config>("MMM-soccer", {
                 if (this.config.matchType === "league" || this.config.matchType === "daily") {
                     match.focused = [match.homeTeam.name, match.awayTeam.name].includes(focusTeam);
                 }
+
                 if (match.status === "TIMED" || match.status === "SCHEDULED" || match.status === "POSTPONED") {
                     match.state = (moment(match.utcDate).diff(moment(), "days") > 7) ? moment(match.utcDate).format("D.MM.") : (moment(match.utcDate).startOf("day") > moment()) ? moment(match.utcDate).format("dd HH:mm") : moment(match.utcDate).format("LT");
                 } else {
