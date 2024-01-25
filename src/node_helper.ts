@@ -1,26 +1,22 @@
-/**
- * @file node_helper.js
- *
- * @author lavolp3 / fewieden (original module)
- * @license MIT
- *
- * @see  https://github.com/lavolp3/MMM-soccer
- */
+import axios from "axios";
+import * as NodeHelper from "node_helper";
+import moment from "moment";
+import { GetStandingResponse } from "./models/football-data/get-standing-response";
+import { isFulfilled } from "./utils/utils";
+import { Team } from "./models/football-data/team";
+import { Config } from "./models/config";
+import { Tables } from "./models/tables";
+import { GetMatchesResponse } from "./models/football-data/get-matches-response";
+import { MatchesPerLeague } from "./models/matches-per-league";
 
-/* jshint esversion: 6 */
-
-const axios = require("axios");
-const NodeHelper = require("node_helper");
-const moment = require("moment");
-
+// noinspection JSVoidFunctionReturnValueUsed
 module.exports = NodeHelper.create({
 
-    matches: {},
-    tables: {},
-    teams: {},
-    teamList: {},
-    liveMatches: [],
-    liveLeagues: [],
+    matches: {} as MatchesPerLeague,
+    tables: {} as Record<string, Tables>,
+    teams: {} as Record<string, Team>,
+    liveMatches: [] as number[],
+    liveLeagues: [] as string[],
     isRunning: false,
     callInterval: undefined,
 
@@ -31,9 +27,9 @@ module.exports = NodeHelper.create({
 
     socketNotificationReceived: function(notification, payload) {
         if (notification === "GET_SOCCER_DATA") {
-            this.config = payload;
+            this.config = payload as Config;
             this.leagues = this.config.show;
-            this.headers = payload.api_key ? { "X-Auth-Token": payload.api_key } : {};
+            this.headers = this.config.apiKey ? { "X-Auth-Token": this.config.apiKey } : {};
             this.getTables(this.leagues);
             this.getMatches(this.leagues);
             if (!this.isRunning) {
@@ -55,102 +51,81 @@ module.exports = NodeHelper.create({
         }, updateInterval);
     },
 
-    getTables: function(leagues) {
+    getTables: async function(leagues: string[]) {
         const self = this;
-        const urlArray = leagues.map(league => `https://api.football-data.org/v4/competitions/${league}/standings`);
+        const promises = leagues
+            .map(league => `https://api.football-data.org/v4/competitions/${league}/standings`)
+            .map(url => axios.get(url, { headers: self.headers }));
 
-        Promise.all(urlArray.map(url => {
-            return axios.get(url, { headers: self.headers })
-                .then(response => ({
-                    competition: response.data.competition,
-                    season: response.data.season,
-                    standings: response.data.standings
-                }))
-                .catch(error => {
-                    self.handleErrors(error, url);
-                    return {};
-                });
-        }))
-            .then(tableArray => {
-                tableArray
-                    .filter(tables => tables.hasOwnProperty("standings"))
-                    .forEach(tables => {
-                        tables.standings
-                            .flatMap(standing => standing.table)
-                            .forEach(ranking => {
-                                self.teams[ranking.team.id] = ranking.team;
-                                self.teamList[ranking.team.name] = ranking.team.name;
-                            });
-
-                        self.tables[tables.competition.code] = tables;
+        const responses = await Promise.allSettled(promises);
+        responses
+            .filter(isFulfilled)
+            .map(res => res.value.data as GetStandingResponse)
+            .forEach(response => {
+                response.standings
+                    .flatMap(standing => standing.table)
+                    .forEach(ranking => {
+                        self.teams[ranking.team.id] = ranking.team;
                     });
 
-                self.sendSocketNotification("TABLES", self.tables);
-                self.sendSocketNotification("TEAMS", self.teams);
+                self.tables[response.competition.code] = response;
             });
+
+        self.sendSocketNotification("TABLES", self.tables);
+        self.sendSocketNotification("TEAMS", self.teams);
     },
 
-    getMatches: function(leagues) {
-        const now = moment().subtract(60 * 13, "minutes");	//subtract minutes or hours to test live mode
-        const urlArray = leagues.map(league => `https://api.football-data.org/v4/competitions/${league}/matches`);
+    getMatches: async function(leagues: string[]) {
         this.liveLeagues = [];
-        const self = this;
-        Promise.all(urlArray.map(url => {
-            return axios.get(url, { headers: self.headers })
-                .then(response => {
-                    const matchesData = response.data;
-                    const currentLeague = matchesData.competition.code;
-                    matchesData.matches.forEach(match => {
-                        delete match.referees;
+        const promises = leagues
+            .map(league => `https://api.football-data.org/v4/competitions/${league}/matches`)
+            .map(url => axios.get(url, { headers: this.headers }));
 
-                        //check for live matches
-                        if (match.status === "IN_PLAY" || Math.abs(moment(match.utcDate).diff(now, "seconds")) < self.config.apiCallInterval * 2) {
-                            if (self.liveMatches.indexOf(match.id) === -1) {
-                                self.log(`Live match detected starting at ${moment(match.utcDate).format("HH:mm")}, Home Team: ${match.homeTeam.name}`);
-                                self.log(`Live match ${match.id} added at ${moment().format("HH:mm")}`);
-                                self.liveMatches.push(match.id);
-                            }
-                            if (self.liveLeagues.indexOf(currentLeague) === -1) {
-                                self.log(`Live league ${currentLeague} added at ${moment().format("HH:mm")}`);
-                                self.liveLeagues.push(currentLeague);
-                            }
-                        } else {
-                            if (self.liveMatches.indexOf(match.id) !== -1) {
-                                self.log("Live match finished!");
-                                self.liveMatches.splice(self.liveMatches.indexOf(match.id), 1);
-                            }
-                        }
-                    });
-                    return (matchesData);
-                })
-                .catch(error => {
-                    self.handleErrors(error, url);
-                    return {};
-                });
-        }))
-            .then(matchesArray => {
-                matchesArray
-                    .filter(comp => comp.hasOwnProperty("competition"))
-                    .forEach(comp => {
-                        self.matches[comp.competition.code] = comp;
-                    });
-                self.sendSocketNotification("MATCHES", self.matches);
-                self.toggleLiveMode(self.liveMatches.length > 0);
-            })
-            .catch(error => {
-                console.error("[MMM-soccer] ERROR occurred while fetching matches: " + error);
-            });
+        const responses = await Promise.allSettled(promises);
+        this.matches = responses
+            .filter(isFulfilled)
+            .map(res => res.value.data as GetMatchesResponse)
+            .map(matchesResponse => this.handleLiveMatches(matchesResponse))
+            .filter(matchesResponse => matchesResponse.hasOwnProperty("competition"))
+            .map(matchesResponse => ([matchesResponse.competition.code, matchesResponse.matches]))
+            .map(([competition, matches]) => ({ [competition]: matches }))
+            .reduce((acc, obj) => Object.assign(acc, obj), {});
+
+        this.sendSocketNotification("MATCHES", this.matches);
+        this.toggleLiveMode(this.liveMatches.length > 0);
     },
 
-    handleErrors: function(error, url) {
-        console.error(`GET ${url} error:`, error);
+    handleLiveMatches: function(matchesData: GetMatchesResponse) {
+        const now = moment().subtract(60 * 13, "minutes");	//subtract minutes or hours to test live mode
 
-        if (error.response && error.response.status === 429) {
-            console.error(`${error.response.status}: API Request Quota exceeded, try selecting fewer leagues.`);
-        }
+        const currentLeague = matchesData.competition.code;
+        matchesData.matches.forEach(match => {
+            delete match.referees;
+
+            // check for live matches
+            if (match.status === "IN_PLAY" || Math.abs(moment(match.utcDate).diff(now, "seconds")) < this.config.apiCallInterval * 2) {
+                if (!this.liveMatches.includes(match.id)) {
+                    this.log(`Live match detected starting at ${moment(match.utcDate).format("HH:mm")}, Home Team: ${match.homeTeam.name}`);
+                    this.log(`Live match ${match.id} added at ${moment().format("HH:mm")}`);
+                    this.liveMatches.push(match.id);
+                }
+
+                if (!this.liveLeagues.includes(currentLeague)) {
+                    this.log(`Live league ${currentLeague} added at ${moment().format("HH:mm")}`);
+                    this.liveLeagues.push(currentLeague);
+                }
+            } else {
+                if (this.liveMatches.includes(match.id)) {
+                    this.log("Live match finished!");
+                    this.liveMatches.splice(this.liveMatches.indexOf(match.id), 1);
+                }
+            }
+        });
+
+        return matchesData;
     },
 
-    toggleLiveMode: function(isLive) {
+    toggleLiveMode: function(isLive: boolean) {
         if (isLive !== this.liveMode) {
             if (this.callInterval) clearInterval(this.callInterval);
             if (isLive) {
@@ -176,7 +151,7 @@ module.exports = NodeHelper.create({
         }
     },
 
-    log: function(msg) {
+    log: function(msg: any) {
         if (this.config?.debug) {
             console.log(this.name + ":", JSON.stringify(msg));
         }
