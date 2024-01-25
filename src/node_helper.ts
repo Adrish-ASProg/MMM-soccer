@@ -44,7 +44,7 @@ module.exports = NodeHelper.create({
         }
     },
 
-    scheduleAPICalls: function(live) {
+    scheduleAPICalls: function() {
         const self = this;
         const updateInterval = (this.liveLeagues.length > 0) ? 60 * 1000 : this.config.apiCallInterval * 1000;
 
@@ -139,36 +139,6 @@ module.exports = NodeHelper.create({
             })
             .catch(error => {
                 console.error("[MMM-soccer] ERROR occurred while fetching matches: " + error);
-            });
-    },
-
-
-    getMatchDetails: function(matches) {
-        const self = this;
-        const urlArray = matches.map(match => `https://api.football-data.org/v2/matches/${match}`);
-        Promise.all(urlArray.map(url => {
-            return axios.get(url, { headers: self.headers })
-                .then(function(response) {
-                    self.log("Requests available: " + response.headers["x-requests-available-minute"]);
-                    const matchData = response.data;
-                    self.log(matchData);
-                    if (matchData.match.status !== "IN_PLAY" && self.liveMatches.indexOf(matchData.match.id) !== -1) {
-                        self.log("Live match finished");
-                        self.liveMatches.splice(self.liveMatches.indexOf(comp.matches[m].id), 1);
-                        self.log("Live matches: " + self.liveMatches);
-                    }
-                    return (matchData);
-                })
-                .catch(function(error) {
-                    self.handleErrors(error, url);
-                    return {};
-                });
-        }))
-            .then(function(liveMatchesArray) {
-                /*LiveMatchesArray.forEach(match => {
-                    liveMatches[match.match.competition.id] = match;
-                });*/
-                self.sendSocketNotification("LIVE_MATCHES", liveMatchesArray);
             });
     },
 

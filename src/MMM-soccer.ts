@@ -316,9 +316,7 @@ Module.register("MMM-soccer", {
                     nextMatches.push(filteredMatches[i]);
                 }
             }
-            nextMatches.sort(function(match1, match2) {
-                return (moment(match1.utcDate) - moment(match2.utcDate));
-            });
+            nextMatches.sort((match1, match2) => moment(match1.utcDate).diff(moment(match2.utcDate)));
             returnedMatches.push({
                 competition: this.translate("NEXT_MATCHES"),
                 season: (Object.keys(this.tables).length > 0) ? "" : this.translate("LOADING"),
@@ -383,6 +381,7 @@ Module.register("MMM-soccer", {
             return table.type === "TOTAL";
         });
 
+        let table;
         if (tableArray[0].group === "GROUP_A" && this.config.focus_on.hasOwnProperty(tables.competition.code)) {			//cup mode
             for (let t = 0; t < tableArray.length; t++) {
                 for (let n = 0; n < tableArray[t].table.length; n++) {
@@ -541,7 +540,7 @@ Module.register("MMM-soccer", {
 
 
     addFilters: function() {
-        njEnv = this.nunjucksEnvironment();
+        const njEnv = this.nunjucksEnvironment();
         njEnv.addFilter("fade", (index, focus) => {
             if (this.config.max_teams && this.config.fadeFocus && focus >= 0) {
                 if (index !== focus) {
