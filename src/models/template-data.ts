@@ -1,16 +1,14 @@
 import { Config } from "./config";
-import { TemplateComps } from "./template-comps";
+import { MatchView } from "./match-view";
 
 export interface TemplateData {
+    matchViews: MatchView[];
     boundaries: any;
-    matchHeader: any;
     config: Config;
     isModalActive: any;
     modals: any;
     table: any;
-    comps: TemplateComps;
     showTable: any;
-    teams: any;
     showMatchDay: any;
     voice: any;
 }

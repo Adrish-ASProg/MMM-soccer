@@ -3,11 +3,11 @@ import moment from "moment";
 import { Config } from "./models/config";
 import { DISPLAY_MODES } from "./models/cycle-mode";
 import { Tables } from "./models/tables";
-import { Team } from "./models/football-data/team";
 import { MatchesPerLeague } from "./models/matches-per-league";
 import { Match } from "./models/football-data/match";
 import { TemplateData } from "./models/template-data";
-import { TemplateComps } from "./models/template-comps";
+import { LeagueData } from "./models/league-data";
+import { MatchView } from "./models/match-view";
 
 const cycles = [
     DISPLAY_MODES.STANDINGS,
@@ -64,7 +64,7 @@ Module.register<Config>("MMM-soccer", {
     loading: true,
     tables: {} as Record<string, Tables>,
     matches: {} as MatchesPerLeague,
-    teams: {} as Record<string, Team>,
+    leagueDatas: [] as LeagueData[],
     matchDay: "",
     showTable: true,
     leagues: [] as string[],
@@ -147,7 +147,7 @@ Module.register<Config>("MMM-soccer", {
 
     updateCurrentLeague: function() {
         this.competition = this.leagues[this.competitionIndex];
-        this.standing = this.filterTables(this.tables[this.competition], this.config.focus_on[this.competition]);
+        this.standing = this.filterTables();
         this.updateDom(500);
 
         if (this.refreshTimer) clearInterval(this.refreshTimer);
@@ -158,14 +158,14 @@ Module.register<Config>("MMM-soccer", {
     socketNotificationReceived: function(notification, payload) {
         if (notification === "TABLES") {
             this.tables = payload as Record<string, Tables>;
-            this.standing = this.filterTables(this.tables[this.competition], this.config.focus_on[this.competition]);
-        } else if (notification === "MATCHES") {
-            this.matches = payload as MatchesPerLeague;
-        } else if (notification === "TEAMS") {
-            this.teams = payload as Record<string, Team>;
+            this.standing = this.filterTables();
+        } else if (notification === "SOCCER_DATA_RETRIEVED") {
+            this.leagueDatas = payload as LeagueData[];
         }
 
-        if (this.loading === true && this.tables.hasOwnProperty(this.competition) && Object.keys(this.matches).length) {
+        const isLoadedLegacy = this.tables.hasOwnProperty(this.competition);
+
+        if (this.loading === true && (isLoadedLegacy || this.leagueDatas.length)) {
             this.loading = false;
             this.updateDom();
         }
@@ -207,116 +207,77 @@ Module.register<Config>("MMM-soccer", {
     getTemplateData: function(): TemplateData {
         return {
             boundaries: (this.tables.hasOwnProperty(this.competition)) ? this.calculateTeamDisplayBoundaries(this.competition) : {},
-            matchHeader: this.getMatchHeader(),
             config: this.config,
             isModalActive: this.isModalActive(),
             modals: this.modals,
             table: this.standing,
-            comps: (Object.keys(this.matches).length > 0) ? this.prepareMatches(this.matches, this.config.focus_on[this.competition]) : {},
             showTable: this.showTable,
-            teams: (Object.keys(this.tables).length > 0) ? this.teams : {},
             showMatchDay: this.config.showMatchDay,
-            voice: this.voice
+            voice: this.voice,
+            matchViews: this.prepareMatches()
         };
     },
 
-    getMatchHeader: function() {
-        if (this.config.matchType === "daily") {
+
+    prepareMatches: function() {
+        if (!this.leagueDatas.length) {
             return {
-                competition: this.translate("TODAYS_MATCHES"),
-                season: (Object.keys(this.tables).length > 0) ? "" : this.translate("LOADING")
-            };
-        } else if (this.config.matchType === "next") {
-            return {
-                competition: this.translate("NEXT_MATCHES"),
-                season: (Object.keys(this.tables).length > 0) ? "" : this.translate("LOADING")
+                matchDayLabel: this.translate("LOADING")
             };
         }
-        return {
-            competition: (Object.keys(this.tables).length > 0) ? this.tables[this.competition].competition.name : "",
-            season: (Object.keys(this.tables).length > 0) ? `${this.translate("MATCHDAY")}: ${this.translate(this.matchDay)}` : this.translate("LOADING")
-        };
-    },
 
-
-    prepareMatches: function(allMatches: MatchesPerLeague, focusTeam: string) {
-        const returnedMatches: TemplateComps[] = [];
+        const matchViews: MatchView[] = [];
 
         if (this.config.matchType === "league") {
-            let diff = 0;
-            const matches = allMatches[this.competition];
-            let minDiff = Math.abs(moment().diff(matches[0].utcDate));
-            for (let m = 0; m < matches.length; m++) {
-                if (!matches[m].matchday) {
-                    matches[m].matchday = matches[m].stage;
-                }  //for cup modes, copy stage to matchday property
-                diff = Math.abs(moment().diff(matches[m].utcDate));
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    this.matchDay = matches[m].matchday;
-                }
-            }
-            this.log("Current matchday: " + this.matchDay);
-            this.showTable = this.config.showTables && (!isNaN(this.matchDay));
+            const leagueData: LeagueData = this.leagueDatas.find((data: LeagueData) => data.competition.code === this.competition);
 
-            returnedMatches.push({
-                competition: (Object.keys(this.tables).length > 0) ? this.tables[this.competition].competition.name : "",
-                emblem: (Object.keys(this.tables).length > 0) ? this.tables[this.competition].competition.emblem : "",
-                season: (Object.keys(this.tables).length > 0) ? `${this.translate("MATCHDAY")}: ${this.translate(this.matchDay)}` : this.translate("LOADING"),
-                matches: matches.filter(match => match.matchday === this.matchDay)
+            this.showTable = this.config.showTables && typeof leagueData.matchDay !== "string";
+
+            matchViews.push({
+                matchDayLabel: `${this.translate("MATCHDAY")}: ${this.translate(leagueData.matchDay.toString())}`,
+                competition: leagueData.competition.name,
+                emblem: leagueData.competition.emblem,
+                matches: leagueData.matches.filter((match: Match) => match.matchday === leagueData.matchDay)
             });
 
         } else if (this.config.matchType === "next") {
-            const teams: string[] = [];
-            const nextMatches = [];
-            for (let comp in this.config.focus_on) {
-                teams.push(this.config.focus_on[comp]);
-            }
-            for (let league in allMatches) {
-                const filteredMatches = allMatches[league].filter(match =>
-                    teams.includes(match.homeTeam.name) || teams.includes(match.awayTeam.name));
-                const index = filteredMatches.findIndex(match => {
-                    return (parseInt(moment(match.utcDate).format("X")) > parseInt(moment().format("X")));
-                });
-                for (let i = index - 1; i < filteredMatches.length; i++) {
-                    nextMatches.push(filteredMatches[i]);
-                }
-            }
-            nextMatches.sort((match1, match2) => moment(match1.utcDate).diff(moment(match2.utcDate)));
-            returnedMatches.push({
-                competition: this.translate("NEXT_MATCHES"),
-                season: (Object.keys(this.tables).length > 0) ? "" : this.translate("LOADING"),
-                matches: nextMatches.slice(0, this.config.numberOfNextMatches)
+            const focusedTeams = Object.values(this.config.focus_on);
+
+            const focusedTeamsMatches = this.leagueDatas
+                .flatMap((leagueData: LeagueData) => leagueData.matches)
+                .filter((match: Match) => focusedTeams.includes(match.homeTeam.name) || focusedTeams.includes(match.awayTeam.name))
+                .filter((match: Match) => !moment(match.utcDate).isBefore())
+                .toSorted((match1: Match, match2: Match) => moment(match1.utcDate).diff(moment(match2.utcDate)))
+                .slice(0, this.config.numberOfNextMatches);
+
+            matchViews.push({
+                competition: "",
+                matchDayLabel: this.translate("NEXT_MATCHES"),
+                matches: focusedTeamsMatches
             });
 
         } else if (this.config.matchType === "daily") {
             const today = moment().subtract(this.config.daysOffset, "days");
-            // var todaysMatches = [];
-            for (let league in allMatches) {
-                const filteredMatches = allMatches[league].filter(match =>
-                    moment(match.utcDate).isSame(today, "day"));
 
-                if (filteredMatches.length) {
-                    returnedMatches.push({
-                        competition: (Object.keys(this.tables).length > 0) ? this.tables[league].competition.name : "",
-                        season: (Object.keys(this.tables).length > 0) ? "" : this.translate("LOADING"),
-                        matches: filteredMatches
-                    });
-                }
-            }
-            /*todaysMatches = todaysMatches.flat();
-            todaysMatches.sort(function (match1, match2) {
-                return (match1.season.id - match2.season.id);
-            });
-            returnedMatches.push({
-                competition: this.translate('TODAYS_MATCHES'),
-                season: (Object.keys(this.tables).length > 0) ? "" : this.translate('LOADING'),
-                matches: todaysMatches
-            });*/
+            matchViews.push(
+                ...this.leagueDatas.map((leagueData: LeagueData) => ({
+                    competition: leagueData.competition.name,
+                    matchDayLabel: "",
+                    matches: leagueData.matches.filter(match => moment(match.utcDate).isSame(today, "day"))
+                }))
+            );
         }
 
-        returnedMatches.forEach(matchset => {
-            matchset.matches.forEach((match: Match) => {
+        this.processMatches(matchViews);
+
+        return matchViews;
+    },
+
+    processMatches(matchViews: MatchView[]) {
+        const focusTeam = this.config.focus_on[this.competition];
+
+        matchViews.forEach(matchView => {
+            matchView.matches.forEach((match: Match) => {
                 if (this.config.matchType === "league" || this.config.matchType === "daily") {
                     match.focused = [match.homeTeam.name, match.awayTeam.name].includes(focusTeam);
                 }
@@ -333,28 +294,24 @@ Module.register<Config>("MMM-soccer", {
                 }
             });
         });
-
-        return returnedMatches;
     },
 
+    filterTables: function() {
+        const tables: Tables = this.tables[this.competition];
+        const focusTeam: string = this.config.focus_on[this.competition];
 
-    filterTables: function(tables: Tables, focusTeam: string) {
         //filtering out "home" and "away" tables
         if (tables && !tables.standings) return "";
 
-        const tableArray = tables.standings.filter(table => table.type === "TOTAL");
+        const standings = tables.standings.filter(table => table.type === "TOTAL");
 
         let table;
-        if (tableArray[0].group === "GROUP_A" && this.config.focus_on.hasOwnProperty(tables.competition.code)) {			//cup mode
-            for (let t = 0; t < tableArray.length; t++) {
-                for (let n = 0; n < tableArray[t].table.length; n++) {
-                    if (tableArray[t].table[n].team.name === focusTeam) {
-                        table = tableArray[t].table;
-                    }
-                }
-            }
+        if (standings.length > 1 && this.config.focus_on.hasOwnProperty(tables.competition.code)) {			//cup mode
+            return standings
+                .map(standing => standing.table)
+                .find(standingEntry => standingEntry.some(entry => entry.team.name === focusTeam));
         } else {
-            table = tableArray[0].table;
+            table = standings[0].table;
         }
         return table;
     },
