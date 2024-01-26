@@ -1,7 +1,3 @@
-.MMM-soccer .soccerWrapper {
-    #display: flex;
-}
-
 .MMM-soccer .icon {
     width: 24px;
     height: 24px;
@@ -49,7 +45,7 @@
     min-width: 55px;
 }
 
-.MMM-soccer .games .status.TIMED{
+.MMM-soccer .games .status.TIMED {
     font-size: 90%;
 }
 
@@ -65,7 +61,7 @@
 .MMM-soccer .logo {
     max-width: 25px;
     width: 25px;
-    padding: 0px 8px;
+    padding: 0 8px;
     vertical-align: middle;
 }
 
@@ -87,26 +83,7 @@
 
 
 .MMM-soccer .table {
-    margin: 10px 0px;
-}
-
-.MMM-soccer-blur {
-    -webkit-filter: blur(2px) brightness(50%);
-}
-
-.MMM-soccer .modal {
-    position: fixed;
-    text-align: left;
-    left: 50%;
-    top: 50%;
-    -webkit-transform: translate(-50%, -50%);
-    -moz-transform: translate(-50%, -50%);
-    -o-transform: translate(-50%, -50%);
-    transform: translate(-50%, -50%);
-}
-
-.MMM-soccer .modal ul {
-    margin: 0;
+    margin: 10px 0;
 }
 
 .MMM-soccer .homeTeam {

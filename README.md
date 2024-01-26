@@ -88,65 +88,24 @@ Any league included here need to be included in `'show'` as well to show the lea
 There is a `replacements.json` file in the directory including all teams of the free plan. By default, the default replacement for the original team name will be used in the module. You can choose between 'default' mode or 'short' mode showing the 3-letter ID code for the team for a super slim module.
 
 
-## Touch mode (planned)
 
-Touch mode will create buttons to choose between leagues.
-It is also planned to include more detailed information like scorers per league and scorers per game.
-
-Can be switched off in config.
-
-
-## OPTIONAL: Voice Control (may be bugged!)
-
-This module supports voice control by @fewiedens [MMM-voice](https://github.com/fewieden/MMM-voice). In order to use this feature, it's required to install the voice module. There are no extra config options for voice control needed.
-
-
-### Mode
-
-The voice control mode for this module is `SOCCER`
-
-### List of all Voice Commands
-
-* OPEN HELP -> Shows the information from the readme here with mode and all commands.
-* CLOSE HELP -> Hides the help information.
-* SHOW STANDINGS OF COUNTRY NAME -> Switch standings to specific league.
-  Valid country names are (Default: GERMANY, FRANCE, ENGLAND, SPAIN or ITALY)
-  set in config. (Effect stays until your mirror restarts, for permanent change
-  you have to edit the config)
-* EXPAND VIEW -> Expands the standings table and shows all teams.
-* COLLAPSE VIEW -> Collapse the expanded view.
-
-
-## List of available leagues (for the free API):
+## Available competitions (Free API):
 
 As per the [Football-data API Docs](https://www.football-data.org/documentation/api#league-codes):
 
 
-| **League** | **Code** |
-| --- | --- |
-| (Europe) Champions League | 'CL' |
-| (Europe) European Championship 2020 | 'EC' |
-| (English) Premier League | 'PL' |
-| (English) Championship | 'ELC' |
-| (German) Bundesliga | 'BL1' |
-| (Italian) Serie A | 'SA' |
-| (French) Ligue 1 | 'FL1' |
-| (Spain) La Liga | 'PD' |
-| (Portugal) Primiera Liga | 'PPL' |
-| (Netherlands) Eredivisie | 'DED' |
-| (Brazil) Serie A | '' |
-
-
-### TODOs
-
-- [ ] Current top scorer list per league
-- [ ] Touch mode
-- [ ] Tap additional API (presumably API-football) for further competitions (e.g. DFB cup)
-- [ ] Option to show fixed table head with focus on.
-- [x] Highlight currently playing teams in table.
-
-
-Add team specific data, e.g.
-- [ ] next matches
-- [ ] ~current squad / line-up~ not available in free plan!
-- [ ] ~Include option to show scorers for each match~ not available in free plan!
+| Country       | Competition                   | Code |
+|---------------|-------------------------------|------|
+| World         | FIFA World Cup                | WC   |
+| Europe        | UEFA Champions League         | CL   |
+| Europe        | European Championship         | EC   |
+|               |                               |      |
+| England       | Premier League                | PL   |
+| Spain         | Primera Division              | PD   |
+| Germany       | Bundesliga                    | BL1  |
+| Italy         | Serie A                       | SA   |
+| France        | Ligue 1                       | FL1  |
+| Portugal      | Primeira Liga                 | PPL  |
+| Netherlands   | Eredivisie                    | DED  |
+| England       | Championship                  | ELC  |
+| Brazil        | Campeonato Brasileiro Série A | BSA  |

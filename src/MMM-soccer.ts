@@ -45,27 +45,9 @@ Module.register<Config>("MMM-soccer", {
         debug: false
     },
 
-    modals: {
-        standings: false,
-        help: false
-    },
-
-    voice: {
-        mode: "SOCCER",
-        sentences: [
-            "OPEN HELP",
-            "CLOSE HELP",
-            "SHOW STANDINGS OF COUNTRY NAME",
-            "EXPAND VIEW",
-            "COLLAPSE VIEW"
-        ]
-    },
-
     loading: true,
     tables: {} as Record<string, Tables>,
-    matches: {} as MatchesPerLeague,
     leagueDatas: [] as LeagueData[],
-    matchDay: "",
     showTable: true,
     leagues: [] as string[],
     replacements: {
@@ -172,17 +154,8 @@ Module.register<Config>("MMM-soccer", {
     },
 
     notificationReceived: function(notification, payload, sender) {
-        if (notification === "ALL_MODULES_STARTED") {
-            const voice = Object.assign({}, this.voice);
-            voice.sentences.push(Object.keys(this.config.leagues).join(" "));
-            this.sendNotification("REGISTER_VOICE_MODULE", voice);
-        } else if (notification === "DOM_OBJECTS_CREATED") {
+        if (notification === "DOM_OBJECTS_CREATED") {
             this.setupGestures();
-        } else if (notification === "VOICE_SOCCER" && sender.name === "MMM-voice") {
-            this.checkCommands(payload);
-        } else if (notification === "VOICE_MODE_CHANGED" && sender.name === "MMM-voice" && payload.old === this.voice.mode) {
-            this.closeAllModals();
-            this.updateDom(500);
         }
     },
 
@@ -208,12 +181,9 @@ Module.register<Config>("MMM-soccer", {
         return {
             boundaries: (this.tables.hasOwnProperty(this.competition)) ? this.calculateTeamDisplayBoundaries(this.competition) : {},
             config: this.config,
-            isModalActive: this.isModalActive(),
-            modals: this.modals,
             table: this.standing,
             showTable: this.showTable,
             showMatchDay: this.config.showMatchDay,
-            voice: this.voice,
             matchViews: this.prepareMatches()
         };
     },
@@ -399,65 +369,6 @@ Module.register<Config>("MMM-soccer", {
     isMaxTeamsLessAll: function() {
         return (this.config.max_teams && this.config.max_teams <= this.standing.length);
     },
-
-
-    handleModals: function(data: any, modal: string, open: RegExp, close: RegExp) {
-        if (close.test(data) || (this.modals[modal] && !open.test(data))) {
-            this.closeAllModals();
-        } else if (open.test(data) || (!this.modals[modal] && !close.test(data))) {
-            this.closeAllModals();
-            this.modals[modal] = true;
-        }
-
-        const modules = document.querySelectorAll(".module");
-        for (let i = 0; i < modules.length; i += 1) {
-            if (!modules[i].classList.contains("MMM-soccer")) {
-                if (this.isModalActive()) {
-                    modules[i].classList.add("MMM-soccer-blur");
-                } else {
-                    modules[i].classList.remove("MMM-soccer-blur");
-                }
-            }
-        }
-    },
-
-
-    closeAllModals: function() {
-        const modals = Object.keys(this.modals);
-        modals.forEach((modal) => {
-            this.modals[modal] = false;
-        });
-    },
-
-
-    isModalActive: function() {
-        const modals = Object.keys(this.modals);
-        return modals.some(modal => this.modals[modal] === true);
-    },
-
-
-    checkCommands: function(data: any) {
-        if (/(HELP)/g.test(data)) {
-            this.handleModals(data, "help", /(OPEN)/g, /(CLOSE)/g);
-        } else if (/(VIEW)/g.test(data)) {
-            this.handleModals(data, "standings", /(EXPAND)/g, /(COLLAPSE)/g);
-        } else if (/(STANDINGS)/g.test(data)) {
-            const countries = Object.keys(this.config.leagues);
-            for (let i = 0; i < countries.length; i += 1) {
-                const regexp = new RegExp(countries[i], "g");
-                if (regexp.test(data)) {
-                    this.closeAllModals();
-                    if (this.currentLeague !== this.config.leagues[countries[i]]) {
-                        this.currentLeague = this.config.leagues[countries[i]];
-                        this.getData();
-                    }
-                    break;
-                }
-            }
-        }
-        this.updateDom(300);
-    },
-
 
     addFilters: function() {
         const njEnv = this.nunjucksEnvironment();
