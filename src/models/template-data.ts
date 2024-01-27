@@ -6,5 +6,5 @@ export interface TemplateData {
     matchViews: MatchView[];
     standingView: StandingView;
     config: Config;
-    showTable: boolean;
+    showTables: boolean;
 }

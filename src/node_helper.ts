@@ -64,7 +64,7 @@ module.exports = NodeHelper.create({
         const matchDay = matchesResponse.matches
             .map(match => {
                 // Cup modes
-                if (!match.matchday) {
+                if (match.stage !== "REGULAR_SEASON") {
                     match.matchday = match.stage;
                 }
 
