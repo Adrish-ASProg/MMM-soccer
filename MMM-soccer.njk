@@ -23,7 +23,9 @@
                             <tbody>
                             {% for match in matchView.matches %}
                                 <tr class="centered-row {% if match.focused %}bright{% endif %}">
-                                    <td class="name matchName homeTeam {{ match.status }} {{ match.homeTeam.status }}">{{ match.homeTeam.name | replace }}</td>
+                                    <td class="name matchName homeTeam {{ match.status }} {% if match.score.winner === "HOME_TEAM" %}winner{% endif %}">
+                                        {{ match.homeTeam.name | replace }}
+                                    </td>
                                     {% if config.logos %}
                                         <td class="logo">
                                             <img class="icon {% if not config.colored %}no-color{% endif %}"
@@ -36,7 +38,9 @@
                                                 class="icon {% if not config.colored %}no-color{% endif %}"
                                                 src="{{ match.awayTeam.crest }}" draggable="false" /></td>
                                     {% endif %}
-                                    <td class="name matchName awayTeam {{ match.status }} {{ match.awayTeam.status }}">{{ match.awayTeam.name | replace }}</td>
+                                    <td class="name matchName awayTeam {{ match.status }} {% if match.score.winner === "AWAY_TEAM" %}winner{% endif %}">
+                                        {{ match.awayTeam.name | replace }}
+                                    </td>
                                 </tr>
                             {% endfor %}
                             </tbody>

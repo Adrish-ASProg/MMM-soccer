@@ -1,5 +1,5 @@
 import axios from "axios";
-import moment from "moment/moment";
+import dayjs from "dayjs";
 import * as NodeHelper from "node_helper";
 import { GetStandingsResponse } from "./models/football-data/get-standings-response";
 import { Config } from "./models/config";
@@ -60,7 +60,7 @@ module.exports = NodeHelper.create({
         const standingsResponse = res[0].data as GetStandingsResponse;
         const matchesResponse = res[1].data as GetMatchesResponse;
 
-        const now = moment();
+        const now = dayjs();
         const matchDay = matchesResponse.matches
             .map(match => {
                 // Cup modes

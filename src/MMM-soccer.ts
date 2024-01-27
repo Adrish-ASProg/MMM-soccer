@@ -1,4 +1,6 @@
+import "dayjs/locale/fr";
 import Hammer from "hammerjs";
+import dayjs from "dayjs";
 import { Config } from "./models/config";
 import { DISPLAY_MODES } from "./models/cycle-mode";
 import { TemplateData } from "./models/template-data";
@@ -55,6 +57,8 @@ Module.register<Config>("MMM-soccer", {
     currentCycle: 0,
 
     start: function() {
+        dayjs.locale(config.language);
+
         this.addFilters();
         this.competitions = this.config.show;
         this.currentCompetition = this.competitions[0];

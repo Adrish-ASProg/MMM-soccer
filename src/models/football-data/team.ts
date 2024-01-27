@@ -10,5 +10,4 @@ export interface Team {
     clubColors?: string;
     venue?: string;
     lastUpdated?: string;
-    status?: string;
 }
