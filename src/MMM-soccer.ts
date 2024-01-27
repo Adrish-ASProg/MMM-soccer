@@ -5,10 +5,8 @@ import { Config } from "./models/config";
 import { DISPLAY_MODES } from "./models/cycle-mode";
 import { TemplateData } from "./models/template-data";
 import { LeagueData } from "./models/league-data";
-import { StandingEntry } from "./models/football-data/standing-entry";
-import { StandingView } from "./models/standing-view";
-import { Standing } from "./models/football-data/standing";
-import { ViewBuilder } from "./view-builder";
+import { buildDailyMatchView, buildLeagueMatchView, buildNextMatchView } from "./view-builders/matches-view-builder";
+import { buildStandingsView } from "./view-builders/standings-view-builder";
 
 const cycles = [
     DISPLAY_MODES.STANDINGS,
@@ -99,14 +97,14 @@ Module.register<Config>("MMM-soccer", {
         if (this.config.matchType === "league") {
             const leagueData: LeagueData = this.leagueDatas.find((data: LeagueData) => data.competition.code === this.currentCompetition)!;
 
-            return ViewBuilder.toLeagueMatchView(
+            return buildLeagueMatchView(
                 leagueData,
                 `${this.translate("MATCHDAY")}: ${this.translate(leagueData.matchDay.toString())}`,
                 focusTeam);
         }
 
         if (this.config.matchType === "next") {
-            return ViewBuilder.toNextMatchView(
+            return buildNextMatchView(
                 this.leagueDatas,
                 this.config.numberOfNextMatches,
                 this.translate("NEXT_MATCHES"),
@@ -114,61 +112,10 @@ Module.register<Config>("MMM-soccer", {
         }
 
         if (this.config.matchType === "daily") {
-            return ViewBuilder.toDailyMatchView(this.leagueDatas, this.config.daysOffset, focusTeam);
+            return buildDailyMatchView(this.leagueDatas, this.config.daysOffset, focusTeam);
         }
 
         return [];
-    },
-
-    filterTables: function(): StandingEntry[] {
-        if (!this.leagueDatas.length) return [];
-
-        const focusTeam: string = this.config.focus_on[this.currentCompetition];
-        const standings: Standing[] = this.leagueDatas
-            .find((data: LeagueData) => data.competition.code === this.currentCompetition)
-            ?.standings
-            .filter((standing: Standing) => standing.type === "TOTAL");
-
-        // Cups, only return the group containing the focused team if any
-        if (standings.length > 1 && focusTeam) {
-            return standings
-                    .map((standing: Standing) => standing.table)
-                    .find((standingEntries: StandingEntry[]) => standingEntries.some(entry => entry.team.name === focusTeam))
-                ?? [];
-        }
-
-        return standings[0].table;
-    },
-
-
-    prepareStandings: function(): StandingView {
-        if (!this.leagueDatas.length) return { standings: [] };
-
-        const standings = this.filterTables();
-
-        if (!this.config.max_teams) return { standings };
-
-        const focus = this.config.focus_on?.[this.currentCompetition];
-
-        if (!focus || focus === "TOP") {
-            return { standings: standings.slice(0, Math.min(this.config.max_teams, standings.length)) };
-        }
-
-        if (focus === "BOTTOM") {
-            return { standings: standings.slice(Math.max(standings.length - this.config.max_teams, 0), standings.length) };
-        }
-
-        // Focus on team
-        const focusedIndex = standings.indexOf(standings.find((s: StandingEntry) => s.team.name === focus));
-
-        let startIndex = Math.max(0, focusedIndex - Math.floor(this.config.max_teams / 2));
-        const endIndex = Math.min(standings.length - 1, startIndex + this.config.max_teams - 1);
-        startIndex = Math.max(0, endIndex - this.config.max_teams + 1);
-
-        return {
-            focusTeam: focus,
-            standings: standings.slice(startIndex, endIndex + 1)
-        };
     },
 
     getTemplateData: function(): TemplateData {
@@ -176,7 +123,7 @@ Module.register<Config>("MMM-soccer", {
             config: this.config,
             showTables: this.config.showTables,
             matchViews: this.prepareMatches(),
-            standingView: this.prepareStandings()
+            standingView: buildStandingsView(this.leagueDatas, this.currentCompetition, this.config)
         };
     },
 
