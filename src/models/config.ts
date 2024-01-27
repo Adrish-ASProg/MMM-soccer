@@ -7,8 +7,7 @@ export interface Config {
     colored: boolean;
     daysOffset: number;
     debug: boolean;
-    fadeFocus: boolean;
-    focus_on: Record<string, string>;
+    focus_on: Record<string, string | "TOP" | "BOTTOM">;
     leagues: Record<string, string>;
     logos: boolean;
     matchType: MatchType;
@@ -16,7 +15,6 @@ export interface Config {
     numberOfNextMatches: number;
     replace: ReplaceType;
     show: string[];
-    showMatchDay: boolean;
     showMatches: boolean;
     showTables: boolean;
     updateInterval: number;

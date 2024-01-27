@@ -2,12 +2,13 @@ import Hammer from "hammerjs";
 import moment from "moment";
 import { Config } from "./models/config";
 import { DISPLAY_MODES } from "./models/cycle-mode";
-import { Tables } from "./models/tables";
-import { MatchesPerLeague } from "./models/matches-per-league";
 import { Match } from "./models/football-data/match";
 import { TemplateData } from "./models/template-data";
 import { LeagueData } from "./models/league-data";
 import { MatchView } from "./models/match-view";
+import { StandingEntry } from "./models/football-data/standing-entry";
+import { StandingView } from "./models/standing-view";
+import { Standing } from "./models/football-data/standing";
 
 const cycles = [
     DISPLAY_MODES.STANDINGS,
@@ -25,12 +26,10 @@ Module.register<Config>("MMM-soccer", {
         updateInterval: 30,
         apiCallInterval: 10 * 60,
         focus_on: {},
-        fadeFocus: true,
         max_teams: 0,
         logos: true,
         showTables: true,
         showMatches: true,
-        showMatchDay: true,
         matchType: "league",
         numberOfNextMatches: 8,
         leagues: {
@@ -46,7 +45,6 @@ Module.register<Config>("MMM-soccer", {
     },
 
     loading: true,
-    tables: {} as Record<string, Tables>,
     leagueDatas: [] as LeagueData[],
     showTable: true,
     leagues: [] as string[],
@@ -129,7 +127,6 @@ Module.register<Config>("MMM-soccer", {
 
     updateCurrentLeague: function() {
         this.competition = this.leagues[this.competitionIndex];
-        this.standing = this.filterTables();
         this.updateDom(500);
 
         if (this.refreshTimer) clearInterval(this.refreshTimer);
@@ -138,16 +135,15 @@ Module.register<Config>("MMM-soccer", {
 
 
     socketNotificationReceived: function(notification, payload) {
-        if (notification === "TABLES") {
-            this.tables = payload as Record<string, Tables>;
-            this.standing = this.filterTables();
-        } else if (notification === "SOCCER_DATA_RETRIEVED") {
+        if (notification === "SOCCER_DATA_RETRIEVED") {
             this.leagueDatas = payload as LeagueData[];
+            if (this.loading === true) {
+                this.loading = false;
+            }
+            this.updateDom();
         }
 
-        const isLoadedLegacy = this.tables.hasOwnProperty(this.competition);
-
-        if (this.loading === true && (isLoadedLegacy || this.leagueDatas.length)) {
+        if (this.loading === true && this.leagueDatas.length) {
             this.loading = false;
             this.updateDom();
         }
@@ -179,12 +175,10 @@ Module.register<Config>("MMM-soccer", {
 
     getTemplateData: function(): TemplateData {
         return {
-            boundaries: (this.tables.hasOwnProperty(this.competition)) ? this.calculateTeamDisplayBoundaries(this.competition) : {},
             config: this.config,
-            table: this.standing,
             showTable: this.showTable,
-            showMatchDay: this.config.showMatchDay,
-            matchViews: this.prepareMatches()
+            matchViews: this.prepareMatches(),
+            standingView: this.prepareStandings()
         };
     },
 
@@ -266,20 +260,21 @@ Module.register<Config>("MMM-soccer", {
         });
     },
 
-    filterTables: function() {
-        const tables: Tables = this.tables[this.competition];
+    filterTables: function(): StandingEntry[] {
+        if (!this.leagueDatas.length) return [];
+
         const focusTeam: string = this.config.focus_on[this.competition];
-
-        //filtering out "home" and "away" tables
-        if (tables && !tables.standings) return "";
-
-        const standings = tables.standings.filter(table => table.type === "TOTAL");
+        const standings: Standing[] = this.leagueDatas
+            .find((data: LeagueData) => data.competition.code === this.competition)
+            ?.standings
+            .filter((standing: Standing) => standing.type === "TOTAL");
 
         let table;
-        if (standings.length > 1 && this.config.focus_on.hasOwnProperty(tables.competition.code)) {			//cup mode
+        if (standings.length > 1 && focusTeam) {			//cup mode
             return standings
-                .map(standing => standing.table)
-                .find(standingEntry => standingEntry.some(entry => entry.team.name === focusTeam));
+                    .map((standing: Standing) => standing.table)
+                    .find((standingEntries: StandingEntry[]) => standingEntries.some(entry => entry.team.name === focusTeam))
+                ?? [];
         } else {
             table = standings[0].table;
         }
@@ -287,114 +282,42 @@ Module.register<Config>("MMM-soccer", {
     },
 
 
-    findFocusTeam: function() {
-        this.log("Finding focus team for table...");
-        let focusTeamIndex = -1;
-        const table = this.standing;
-        for (let i = 0; i < table.length; i++) {
-            if (table[i].team.name === this.config.focus_on[this.competition]) {
-                focusTeamIndex = i;
-                this.log("Focus Team found: " + table[i].team.name);
-                break;
-            }
+    prepareStandings: function(): StandingView {
+        if (!this.leagueDatas.length) return { standings: [] };
+
+        const standings = this.filterTables();
+
+        if (!this.config.max_teams) return { standings };
+
+        const focus = this.config.focus_on?.[this.competition];
+
+        if (!focus || focus === "TOP") {
+            return { standings: standings.slice(0, Math.min(this.config.max_teams, standings.length)) };
         }
 
-        if (focusTeamIndex < 0) {
-            this.log("No Focus Team found! Please check your entry!");
-            return {
-                focusTeamIndex: -1,
-                firstTeam: 0,
-                lastTeam: this.config.max_teams || this.standing.length
-            };
-        } else {
-            const { firstTeam, lastTeam } = this.getFirstAndLastTeam(focusTeamIndex);
-            return { focusTeamIndex, firstTeam, lastTeam };
+        if (focus === "BOTTOM") {
+            return { standings: standings.slice(Math.max(standings.length - this.config.max_teams, 0), standings.length) };
         }
-    },
 
+        // Focus on team
+        const focusedIndex = standings.indexOf(standings.find((s: StandingEntry) => s.team.name === focus));
 
-    getFirstAndLastTeam: function(index: number) {
-        let firstTeam;
-        let lastTeam;
-
-        if (this.config.max_teams) {
-            const before = Math.round(this.config.max_teams / 2);
-            firstTeam = (index - before >= 0) ? (index - before) : 0;
-            if (firstTeam + this.config.max_teams <= this.standing.length) {
-                lastTeam = firstTeam + this.config.max_teams;
-            } else {
-                lastTeam = this.standing.length;
-                /*firstTeam = lastTeam - this.config.max_teams >= 0 ?
-                    lastTeam - this.config.max_teams : 0;*/
-            }
-        } else {
-            firstTeam = 0;
-            lastTeam = this.standing.length;
-        }
-        this.log({ firstTeam, lastTeam });
-        return { firstTeam, lastTeam };
-    },
-
-
-    calculateTeamDisplayBoundaries: function(competition: string) {
-        this.log("Calculating Team Display Boundaries");
-        if (this.config.focus_on && this.config.focus_on.hasOwnProperty(competition)) {
-            if (this.config.focus_on[competition] === "TOP") {
-                this.log("Focus on TOP");
-                return {
-                    focusTeamIndex: -1,
-                    firstTeam: 0,
-                    lastTeam: this.isMaxTeamsLessAll() ? this.config.max_teams : this.standing.length
-                };
-            } else if (this.config.focus_on[this.leagues] === "BOTTOM") {
-                this.log("Focus on BOTTOM");
-                return {
-                    focusTeamIndex: -1,
-                    firstTeam: this.isMaxTeamsLessAll() ? this.standing.length - this.config.max_teams : 0,
-                    lastTeam: this.standing.length
-                };
-            }
-            this.log("Focus on Team");
-            return this.findFocusTeam();
-        }
+        let startIndex = Math.max(0, focusedIndex - Math.floor(this.config.max_teams / 2));
+        const endIndex = Math.min(standings.length - 1, startIndex + this.config.max_teams - 1);
+        startIndex = Math.max(0, endIndex - this.config.max_teams + 1);
 
         return {
-            focusTeamIndex: -1,
-            firstTeam: 0,
-            lastTeam: this.config.max_teams || this.standing.length
+            focusTeam: focus,
+            standings: standings.slice(startIndex, endIndex + 1)
         };
-    },
-
-
-    isMaxTeamsLessAll: function() {
-        return (this.config.max_teams && this.config.max_teams <= this.standing.length);
     },
 
     addFilters: function() {
         const njEnv = this.nunjucksEnvironment();
-        njEnv.addFilter("fade", (index: number, focus: number) => {
-            if (this.config.max_teams && this.config.fadeFocus && focus >= 0) {
-                if (index !== focus) {
-                    const currentStep = Math.abs(index - focus);
-                    return `opacity: ${1 - ((1 / this.config.max_teams) * currentStep)}`;
-                }
-            }
-            return "";
-        });
+        njEnv.addFilter("replace", (originalName: string) => {
+            if (!this.config.replace) return originalName;
 
-        njEnv.addFilter("replace", (team: string) => {
-            const replace = this.config.replace;
-            if ((replace === "default" || replace === "short") && (this.replacements.default.hasOwnProperty(team))) {
-                return this.replacements[replace][team];
-            } else {
-                return team;
-            }
+            return this.replacements[this.config.replace]?.[originalName] ?? originalName;
         });
-    },
-
-    log: function(msg: any) {
-        if (this.config && this.config.debug) {
-            console.log(this.name + ":", JSON.stringify(msg));
-        }
     }
 });

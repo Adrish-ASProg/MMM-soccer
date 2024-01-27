@@ -66,20 +66,26 @@
                 </tr>
                 </thead>
                 <tbody>
-                {% for i in range(boundaries.firstTeam, boundaries.lastTeam) %}
-                    <tr class="centered-row {% if i === boundaries.focusTeamIndex %}bright{% endif %}"
-                        style="{{ i | fade(boundaries.focusTeamIndex) }}">
-                    <tr class="centered-row {% if i === boundaries.focusTeamIndex %}bright{% endif %}"
-                        style="{{ i | fade(boundaries.focusTeamIndex) }}">
-                        <td>{{ table[i].position }}</td>
+                {% for standingEntry in standingView.standings %}
+                    <tr class="centered-row {% if standingEntry.team.name === standingView.focusTeam %}bright{% endif %}">
+                    <tr class="centered-row {% if standingEntry.team.name === standingView.focusTeam %}bright{% endif %}">
+                        <td>{{ standingEntry.position }}</td>
                         {% if config.logos %}
-                            <td class="logo"><img class="icon {% if not config.colored %}no-color{% endif %}"
-                                                  src="{{ table[i].team.crest }}" draggable="false" /></td>
+                            <td class="logo">
+                                <img class="icon {% if not config.colored %}no-color{% endif %}"
+                                     src="{{ standingEntry.team.crest }}"
+                                     draggable="false" />
+                            </td>
                         {% endif %}
-                        <td class="name">{{ table[i].team.name | replace }}</td>
-                        <td class="centered">{{ table[i].playedGames }}</td>
-                        <td class="centered">{{ table[i].points }}</td>
-                        <td class="centered">{% if table[i].goalDifference > 0 %}+{% endif %}{{ table[i].goalDifference }}</td>
+                        <td class="name">{{ standingEntry.team.name | replace }}</td>
+                        <td class="centered">{{ standingEntry.playedGames }}</td>
+                        <td class="centered">{{ standingEntry.points }}</td>
+                        <td class="centered">
+                            {% if standingEntry.goalDifference > 0 %}
+                                +
+                            {% endif %}
+                            {{ standingEntry.goalDifference }}
+                        </td>
                     </tr>
                 {% endfor %}
                 </tbody>

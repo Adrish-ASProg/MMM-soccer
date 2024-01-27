@@ -2,9 +2,7 @@ import axios from "axios";
 import moment from "moment/moment";
 import * as NodeHelper from "node_helper";
 import { GetStandingsResponse } from "./models/football-data/get-standings-response";
-import { isFulfilled } from "./utils/utils";
 import { Config } from "./models/config";
-import { Tables } from "./models/tables";
 import { GetMatchesResponse } from "./models/football-data/get-matches-response";
 import { LeagueData } from "./models/league-data";
 
@@ -12,7 +10,6 @@ import { LeagueData } from "./models/league-data";
 module.exports = NodeHelper.create({
 
     apiKey: "",
-    tables: {} as Record<string, Tables>,
     isRunning: false,
 
 
@@ -23,7 +20,6 @@ module.exports = NodeHelper.create({
         this.leagues = this.config.show;
         this.apiKey = this.config.apiKey;
 
-        this.getTables(this.leagues);
         this.getData(this.config.show);
 
         if (!this.isRunning) {
@@ -34,7 +30,6 @@ module.exports = NodeHelper.create({
 
     scheduleAPICalls: function() {
         setInterval(() => {
-            this.getTables(this.leagues);
             this.getData(this.config.show);
         }, this.config.apiCallInterval * 1000);
     },
@@ -95,22 +90,5 @@ module.exports = NodeHelper.create({
             matchDay,
             teams
         } as LeagueData;
-    },
-
-    getTables: async function(leagues: string[]) {
-        const self = this;
-        const promises = leagues
-            .map(league => `https://api.football-data.org/v4/competitions/${league}/standings`)
-            .map(url => axios.get(url, { headers: { "X-Auth-Token": this.apiKey } }));
-
-        const responses = await Promise.allSettled(promises);
-        responses
-            .filter(isFulfilled)
-            .map(res => res.value.data as GetStandingsResponse)
-            .forEach(response => {
-                self.tables[response.competition.code] = response;
-            });
-
-        self.sendSocketNotification("TABLES", self.tables);
     }
 });

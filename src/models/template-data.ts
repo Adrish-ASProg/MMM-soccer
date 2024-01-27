@@ -1,11 +1,10 @@
 import { Config } from "./config";
 import { MatchView } from "./match-view";
+import { StandingView } from "./standing-view";
 
 export interface TemplateData {
     matchViews: MatchView[];
-    boundaries: any;
+    standingView: StandingView;
     config: Config;
-    table: any;
-    showTable: any;
-    showMatchDay: any;
+    showTable: boolean;
 }
