@@ -50,7 +50,6 @@ Module.register<Config>("MMM-soccer", {
     loading: true,
     competitions: [] as string[],
     currentCompetition: "",
-    competitionIndex: 0,
     refreshTimer: undefined,
     currentCycle: 0,
 
@@ -70,20 +69,17 @@ Module.register<Config>("MMM-soccer", {
 
 
     scheduleDOMUpdates: function() {
+        if (this.refreshTimer) clearInterval(this.refreshTimer);
         this.refreshTimer = setInterval(this.showNextLeague.bind(this), this.config.updateInterval * 1000);
     },
 
     showNextLeague: function() {
-        this.competitionIndex = this.competitionIndex >= this.competitions.length - 1 ? 0 : this.competitionIndex + 1;
-        this.updateCurrentLeague();
-    },
+        const currentIndex = this.competitions.indexOf(this.currentCompetition);
+        const newIndex = currentIndex >= this.competitions.length - 1 ? 0 : currentIndex + 1;
+        this.currentCompetition = this.competitions[newIndex];
 
-    updateCurrentLeague: function() {
-        this.currentCompetition = this.competitions[this.competitionIndex];
-        this.updateDom(500);
-
-        if (this.refreshTimer) clearInterval(this.refreshTimer);
         this.scheduleDOMUpdates();
+        this.updateDom(500);
     },
 
 
@@ -154,6 +150,7 @@ Module.register<Config>("MMM-soccer", {
         this.config.matchType = cycles[this.currentCycle].matchType;
         this.config.showMatches = cycles[this.currentCycle].showMatches;
         this.config.showTables = cycles[this.currentCycle].showTables;
+        this.scheduleDOMUpdates();
         this.updateDom(500);
     },
 
