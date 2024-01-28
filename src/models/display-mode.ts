@@ -6,7 +6,7 @@ interface DisplayMode {
     showTables: boolean;
 }
 
-export const DISPLAY_MODES: Record<string, DisplayMode> = {
+export const DISPLAY_MODE: Record<string, DisplayMode> = {
     STANDINGS: {
         matchType: "league",
         showMatches: false,

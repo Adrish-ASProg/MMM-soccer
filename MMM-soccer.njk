@@ -15,7 +15,10 @@
                             </div>
                             <div class="header-matchDay-text small bold">
                                 <span>{{ matchView.competition }}</span>
-                                <span>{{ matchView.matchDayLabel }}</span>
+                                <div>
+                                    <span>{{ matchView.matchDayLabel | translate }}</span>
+                                    <span>{{ matchView.matchDay | translate }}</span>
+                                </div>
                             </div>
                         </div>
 

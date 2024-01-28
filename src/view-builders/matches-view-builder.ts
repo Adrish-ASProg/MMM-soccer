@@ -1,25 +1,49 @@
 import dayjs from "dayjs";
 import { LeagueData } from "../models/league-data";
 import { Match } from "../models/football-data/match";
-import { MatchType } from "../models/config";
+import { Config, MatchType } from "../models/config";
 import { MatchView } from "../models/match-view";
 
-export const buildLeagueMatchView = (leagueData: LeagueData, matchDayLabel: string, focusTeam: string) => {
-    const matches = leagueData.matches
-        .filter((match: Match) => match.matchday === leagueData.matchDay)
-        .filter((match: Match) => match.matchday === leagueData.matchDay);
+export const buildMatchViews = (leagueDatas: LeagueData[], currentCompetition: string, config: Config): MatchView[] => {
+    if (!leagueDatas.length) {
+        return [{ matchDayLabel: "LOADING", matches: [] }];
+    }
 
-    const matchViews = {
-        matchDayLabel,
+    const focusTeam = config.focus_on[currentCompetition];
+
+    switch (config.matchType) {
+        case "league":
+            return buildLeagueMatchView(leagueDatas, currentCompetition, focusTeam);
+
+        case "next":
+            return buildNextMatchView(leagueDatas, config.numberOfNextMatches, Object.values(config.focus_on));
+
+
+        case "daily":
+            return buildDailyMatchView(leagueDatas, config.daysOffset, focusTeam);
+
+        default:
+            return [];
+    }
+
+};
+
+export const buildLeagueMatchView = (leagueDatas: LeagueData[], currentCompetition: string, focusTeam: string): MatchView[] => {
+    const leagueData: LeagueData = leagueDatas.find(data => data.competition.code === currentCompetition)!;
+    const matches = leagueData.matches.filter(match => match.matchday === leagueData.matchDay);
+
+    const matchView = {
+        matchDayLabel: "MATCHDAY",
+        matchDay: leagueData.matchDay.toString(),
         competition: leagueData.competition.name,
         emblem: leagueData.competition.emblem,
         matches
     };
 
-    return processMatches([matchViews], "league", focusTeam);
+    return processMatches([matchView], "league", focusTeam);
 };
 
-export const buildNextMatchView = (leagueDatas: LeagueData[], nextMatchesCount: number, matchDayLabel: string, focusedTeams: string[]) => {
+export const buildNextMatchView = (leagueDatas: LeagueData[], nextMatchesCount: number, focusedTeams: string[]) => {
     const focusedTeamsMatches = leagueDatas
         .flatMap((leagueData: LeagueData) => leagueData.matches)
         .filter((match: Match) => focusedTeams.includes(match.homeTeam.name) || focusedTeams.includes(match.awayTeam.name))
@@ -27,13 +51,13 @@ export const buildNextMatchView = (leagueDatas: LeagueData[], nextMatchesCount: 
         .toSorted((match1: Match, match2: Match) => dayjs(match1.utcDate).diff(dayjs(match2.utcDate)))
         .slice(0, nextMatchesCount);
 
-    const matchViews = {
+    const matchView = {
         competition: "",
-        matchDayLabel,
+        matchDayLabel: "NEXT_MATCHES",
         matches: focusedTeamsMatches
     };
 
-    return processMatches([matchViews], "next");
+    return processMatches([matchView], "next");
 };
 
 export const buildDailyMatchView = (leagueDatas: LeagueData[], daysOffset: number, focusTeam: string) => {

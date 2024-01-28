@@ -2,17 +2,17 @@ import "dayjs/locale/fr";
 import Hammer from "hammerjs";
 import dayjs from "dayjs";
 import { Config } from "./models/config";
-import { DISPLAY_MODES } from "./models/cycle-mode";
+import { DISPLAY_MODE } from "./models/display-mode";
 import { TemplateData } from "./models/template-data";
 import { LeagueData } from "./models/league-data";
-import { buildDailyMatchView, buildLeagueMatchView, buildNextMatchView } from "./view-builders/matches-view-builder";
+import { buildMatchViews } from "./view-builders/matches-view-builder";
 import { buildStandingsView } from "./view-builders/standings-view-builder";
 
 const cycles = [
-    DISPLAY_MODES.STANDINGS,
-    DISPLAY_MODES.LEAGUE_MATCHES,
-    DISPLAY_MODES.NEXT_MATCHES,
-    DISPLAY_MODES.DAILY_MATCHES
+    DISPLAY_MODE.STANDINGS,
+    DISPLAY_MODE.LEAGUE_MATCHES,
+    DISPLAY_MODE.NEXT_MATCHES,
+    DISPLAY_MODE.DAILY_MATCHES
 ];
 
 Module.register<Config>("MMM-soccer", {
@@ -82,43 +82,11 @@ Module.register<Config>("MMM-soccer", {
         this.updateDom(500);
     },
 
-
-    prepareMatches: function() {
-        if (!this.leagueDatas.length) {
-            return { matchDayLabel: this.translate("LOADING") };
-        }
-
-        const focusTeam = this.config.focus_on[this.currentCompetition];
-
-        if (this.config.matchType === "league") {
-            const leagueData: LeagueData = this.leagueDatas.find((data: LeagueData) => data.competition.code === this.currentCompetition)!;
-
-            return buildLeagueMatchView(
-                leagueData,
-                `${this.translate("MATCHDAY")}: ${this.translate(leagueData.matchDay.toString())}`,
-                focusTeam);
-        }
-
-        if (this.config.matchType === "next") {
-            return buildNextMatchView(
-                this.leagueDatas,
-                this.config.numberOfNextMatches,
-                this.translate("NEXT_MATCHES"),
-                Object.values(this.config.focus_on));
-        }
-
-        if (this.config.matchType === "daily") {
-            return buildDailyMatchView(this.leagueDatas, this.config.daysOffset, focusTeam);
-        }
-
-        return [];
-    },
-
     getTemplateData: function(): TemplateData {
         return {
             config: this.config,
             showTables: this.config.showTables,
-            matchViews: this.prepareMatches(),
+            matchViews: buildMatchViews(this.leagueDatas, this.currentCompetition, this.config),
             standingView: buildStandingsView(this.leagueDatas, this.currentCompetition, this.config)
         };
     },
@@ -167,7 +135,7 @@ Module.register<Config>("MMM-soccer", {
         this.updateDom();
     },
 
-    notificationReceived: function(notification, payload, sender) {
+    notificationReceived: function(notification) {
         if (notification === "DOM_OBJECTS_CREATED") {
             this.setupGestures();
         }
